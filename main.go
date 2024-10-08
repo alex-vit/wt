@@ -18,60 +18,74 @@ func main() {
 		exitUsage()
 	}
 
-	from := "en"
-	queryStart := 1
+	srcLang := "en"
+	queryArgsStartIdx := 1
 	if strings.HasPrefix(os.Args[1], "from=") {
 		if len(os.Args) < 3 {
 			exitUsage()
 		}
-		from = strings.TrimPrefix(os.Args[1], "from=")
-		queryStart = 2
+		srcLang = strings.TrimPrefix(os.Args[1], "from=")
+		queryArgsStartIdx = 2
 	}
 
-	query := strings.Join(os.Args[queryStart:], " ")
-	to := []string{"en", "es", "fr", "ru", "lv", "lt"}
-	to = slices.DeleteFunc(to, func(lang string) bool { return lang == from })
-	slices.Sort(to)
+	query := strings.Join(os.Args[queryArgsStartIdx:], " ")
+	targetLangs := []string{"en", "es", "fr", "ru", "lv", "lt"}
+	targetLangs = slices.DeleteFunc(targetLangs, func(lang string) bool { return lang == srcLang })
+	slices.Sort(targetLangs)
 
-	title, err := findTitle(from, query)
+	title, url, err := findTitle(srcLang, query)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	links, err := getLangLinks(from, title)
+	links, err := getLangLinks(srcLang, title)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("%s: %s\n", from, title) // "from" language is not included in lang links
-	for _, lang := range to {
-		i := slices.IndexFunc(links, func(ll LangLink) bool { return ll.Lang == lang })
-		star := "???"
-		if i != -1 {
-			star = links[i].Star
+	fmt.Printf("%s: %-30s %s\n", srcLang, title, url) // "from" language is not included in lang links
+
+	for _, lang := range targetLangs {
+		linkIdx := slices.IndexFunc(links, func(ll LangLink) bool { return ll.Lang == lang })
+
+		if linkIdx != -1 {
+			star := links[linkIdx].Star
+			if len(star) > 30 {
+				star = star[:27] + "..."
+			}
+			url = links[linkIdx].Url
+			fmt.Printf("%s: %-30s %s\n", lang, star, url)
+		} else {
+			fmt.Printf("%s: ???\n", lang)
 		}
-		fmt.Printf("%s: %s\n", lang, star)
 	}
 }
 
-func findTitle(lang, query string) (title string, err error) {
-	u, err := url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=query&format=json&list=search&srlimit=1")
+func makeUrl(lang, query string) string {
+	url, err := url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=query&format=json&list=search&srlimit=1")
 	if err != nil {
 		panic("failed to parse URL")
 	}
-	q := u.Query()
-	q.Set("srsearch", query)
-	u.RawQuery = q.Encode()
 
-	resp, err := http.Get(u.String())
+	q := url.Query()
+	q.Set("srsearch", query)
+	url.RawQuery = q.Encode()
+
+	return url.String()
+}
+
+func findTitle(lang, query string) (title, url string, err error) {
+	url = makeUrl(lang, query)
+
+	resp, err := http.Get(url)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer resp.Body.Close()
 
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	var search struct {
@@ -83,25 +97,25 @@ func findTitle(lang, query string) (title string, err error) {
 	}
 	err = json.Unmarshal(respBytes, &search)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	if len(search.Query.Searches) < 1 {
-		return "", fmt.Errorf("No results for %s\n", query)
+		return "", "", fmt.Errorf("No results for %s\n", query)
 	}
 
-	return search.Query.Searches[0].Title, nil
+	return search.Query.Searches[0].Title, url, nil
 }
 
 type LangLink struct {
 	Lang string `json:"lang"`
 	// LangName string `json:"langname"`
 	Star string `json:"*"`
-	// Url      string `json:"url"`
+	Url  string `json:"url"`
 }
 
 func getLangLinks(lang, title string) (langLinks []LangLink, err error) {
-	u, err := url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=query&format=json&prop=langlinks&lllimit=max") // &llprop=langname|url
+	u, err := url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=query&format=json&prop=langlinks&llprop=url&lllimit=max") // &llprop=langname|url
 	if err != nil {
 		panic("failed to parse URL")
 	}
