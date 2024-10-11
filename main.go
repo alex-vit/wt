@@ -17,46 +17,45 @@ func main() {
 		exitUsage()
 	}
 
-	srcLang := "en"
-	queryArgsStartIdx := 1
+	sourceLang := "en"
+	queryStartIdx := 1
 	if strings.HasPrefix(os.Args[1], "from=") {
 		if len(os.Args) < 3 {
 			exitUsage()
 		}
-		srcLang = strings.TrimPrefix(os.Args[1], "from=")
-		queryArgsStartIdx = 2
+		sourceLang = strings.TrimPrefix(os.Args[1], "from=")
+		queryStartIdx = 2
 	}
 
-	query := strings.Join(os.Args[queryArgsStartIdx:], " ")
+	query := strings.Join(os.Args[queryStartIdx:], " ")
+
 	targetLangs := []string{"en", "es", "fr", "ru", "lv", "lt"}
-	targetLangs = slices.DeleteFunc(targetLangs, func(lang string) bool { return lang == srcLang })
+	targetLangs = slices.DeleteFunc(targetLangs, func(lang string) bool { return lang == sourceLang })
 	slices.Sort(targetLangs)
 
-	title, url, err := findTitle(srcLang, query)
+	title, url, err := findTitle(sourceLang, query)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	links, err := getLangLinks(srcLang, title)
+	links, err := getLangLinks(sourceLang, title)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("%s: %-30s %s\n", srcLang, title, url) // "from" language is not included in lang links
+	fmt.Printf("%s: %-30s %s\n", sourceLang, title, url) // "from" language is not included in lang links
 
 	for _, lang := range targetLangs {
 		linkIdx := slices.IndexFunc(links, func(ll LangLink) bool { return ll.Lang == lang })
-
-		if linkIdx != -1 {
-			star := links[linkIdx].Star
-			if len(star) > 30 {
-				star = star[:27] + "..."
-			}
-			url = links[linkIdx].Url
-			fmt.Printf("%s: %-30s %s\n", lang, star, url)
-		} else {
+		if linkIdx == -1 {
 			fmt.Printf("%s: ???\n", lang)
+			continue
 		}
+		star := links[linkIdx].Star
+		if len(star) > 30 {
+			star = star[:27] + "..."
+		}
+		fmt.Printf("%s: %-30s %s\n", lang, star, links[linkIdx].Url)
 	}
 }
 
@@ -90,7 +89,7 @@ func findTitle(lang, query string) (title, titleUrl string, err error) {
 		return "", "", err
 	}
 	if len(idioticApi) != 4 {
-		return "", "", fmt.Errorf("Expected 4 elements. Got: %#v", idioticApi)
+		return "", "", fmt.Errorf("Expected 4 elements. Got %d: %#v", len(idioticApi), idioticApi)
 	}
 
 	titles, ok := idioticApi[1].([]any)
@@ -122,13 +121,13 @@ func findTitle(lang, query string) (title, titleUrl string, err error) {
 
 type LangLink struct {
 	Lang string `json:"lang"`
-	// LangName string `json:"langname"`
+	// LangName string `json:"langname"` // needs &llprop=langname
 	Star string `json:"*"`
-	Url  string `json:"url"`
+	Url  string `json:"url"` // needs &llprop=url
 }
 
 func getLangLinks(lang, title string) (langLinks []LangLink, err error) {
-	u, err := url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=query&format=json&prop=langlinks&llprop=url&lllimit=max") // &llprop=langname|url
+	u, err := url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=query&format=json&prop=langlinks&llprop=url&lllimit=max")
 	if err != nil {
 		panic("failed to parse URL")
 	}
