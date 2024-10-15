@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -43,11 +44,15 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("%s: %-30s %s\n", sourceLang, title, url) // "from" language is not included in lang links
+	// sort for binary search
+	slices.SortFunc(links, func(a, b LangLink) int { return cmp.Compare(a.Lang, b.Lang) })
 
+	fmt.Printf("%s: %-30s %s\n", sourceLang, title, url) // "from" language is not included in lang links
 	for _, lang := range targetLangs {
-		linkIdx := slices.IndexFunc(links, func(ll LangLink) bool { return ll.Lang == lang })
-		if linkIdx == -1 {
+		linkIdx, found := slices.BinarySearchFunc(links, lang, func(link LangLink, lang string) int {
+			return cmp.Compare(link.Lang, lang)
+		})
+		if !found {
 			fmt.Printf("%s: ???\n", lang)
 			continue
 		}
@@ -61,9 +66,6 @@ func main() {
 
 // Finds the matching article and returns its title and URL.
 // Uses opensearch API: https://www.mediawiki.org/wiki/API:Opensearch.
-//
-// Response is in the idiotic format of `[ string | []string ]`. Got the idea
-// for how to parse it from https://gist.github.com/crgimenes/c3b8b4fcce8529e9201f83c8da134f32.
 func findTitle(lang, query string) (title, titleUrl string, err error) {
 	reqUrl := Must(url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=opensearch&format=json&redirects=resolve&limit=1"))
 	q := reqUrl.Query()
@@ -81,42 +83,49 @@ func findTitle(lang, query string) (title, titleUrl string, err error) {
 		return "", "", err
 	}
 
-	// parsing response like:
-	// ["aardvark",["Aardvark"],[""],["https://en.wikipedia.org/wiki/Aardvark"]]
-	var idioticApi []any
-	err = json.Unmarshal(respBytes, &idioticApi)
+	loLoStr, err := listOfListsOfStrings(respBytes)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("Failed to parse response: %w", err)
 	}
-	if len(idioticApi) != 4 {
-		return "", "", fmt.Errorf("Expected 4 elements. Got %d: %#v", len(idioticApi), idioticApi)
-	}
-
-	titles, ok := idioticApi[1].([]any)
-	if !ok {
-		return "", "", fmt.Errorf("Expected a []any at [1]. Got: %#v", idioticApi[1])
-	}
-	if len(titles) == 0 {
-		return "", "", fmt.Errorf(`No results for "%s"`, title)
-	}
-	title, ok = titles[0].(string)
-	if !ok {
-		return "", "", fmt.Errorf("Expected a string at [1][0]. Got: %#v", titles[0])
+	if len(loLoStr) != 4 || len(loLoStr[1]) == 0 || len(loLoStr[3]) == 0 {
+		return "", "", fmt.Errorf("Malformed response. Expected a [4][1+]string, got: %v", loLoStr)
 	}
 
-	urls, ok := idioticApi[3].([]any)
-	if !ok {
-		return "", "", fmt.Errorf("Expected a []any at [3]. Got: %#v", idioticApi[3])
-	}
-	if len(urls) == 0 {
-		return "", "", fmt.Errorf(`No results for "%s"`, title)
-	}
-	titleUrl, ok = urls[0].(string)
-	if !ok {
-		return "", "", fmt.Errorf("Expected a string at [3][0]. Got: %#v", urls[0])
-	}
+	title = loLoStr[1][0]
+	titleUrl = loLoStr[3][0]
 
 	return title, titleUrl, nil
+}
+
+// Useful for parsing responses in the  format of `[ string | []string ]`.
+// Idea from: https://gist.github.com/crgimenes/c3b8b4fcce8529e9201f83c8da134f32.
+func listOfListsOfStrings(bytes []byte) ([][]string, error) {
+	var anyList []any
+	if err := json.Unmarshal(bytes, &anyList); err != nil {
+		return nil, err
+	}
+
+	strLists := make([][]string, 0, len(anyList))
+	for _, item := range anyList {
+		switch obj := item.(type) {
+		case string:
+			strLists = append(strLists, []string{obj})
+		case []any:
+			strList := make([]string, 0, len(obj))
+			for _, v := range obj {
+				if str, ok := v.(string); ok {
+					strList = append(strList, str)
+				} else {
+					return nil, fmt.Errorf("Failed to parse %v", string(bytes))
+				}
+			}
+			strLists = append(strLists, strList)
+		default:
+			return nil, fmt.Errorf("Failed to parse %v", string(bytes))
+		}
+	}
+
+	return strLists, nil
 }
 
 type LangLink struct {
