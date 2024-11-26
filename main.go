@@ -67,7 +67,7 @@ func main() {
 // Finds the matching article and returns its title and URL.
 // Uses opensearch API: https://www.mediawiki.org/wiki/API:Opensearch.
 func findTitle(lang, query string) (title, titleUrl string, err error) {
-	reqUrl := Must(url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=opensearch&format=json&redirects=resolve&limit=1"))
+	reqUrl := must(url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=opensearch&format=json&redirects=resolve&limit=1"))
 	q := reqUrl.Query()
 	q.Set("search", query)
 	reqUrl.RawQuery = q.Encode()
@@ -78,12 +78,7 @@ func findTitle(lang, query string) (title, titleUrl string, err error) {
 	}
 	defer resp.Body.Close()
 
-	respBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", "", err
-	}
-
-	loLoStr, err := listOfListsOfStrings(respBytes)
+	loLoStr, err := listOfListsOfStrings(resp.Body)
 	if err != nil {
 		return "", "", fmt.Errorf("Failed to parse response: %w", err)
 	}
@@ -99,9 +94,9 @@ func findTitle(lang, query string) (title, titleUrl string, err error) {
 
 // Useful for parsing responses in the  format of `[ string | []string ]`.
 // Idea from: https://gist.github.com/crgimenes/c3b8b4fcce8529e9201f83c8da134f32.
-func listOfListsOfStrings(bytes []byte) ([][]string, error) {
+func listOfListsOfStrings(r io.Reader) ([][]string, error) {
 	var anyList []any
-	if err := json.Unmarshal(bytes, &anyList); err != nil {
+	if err := json.NewDecoder(r).Decode(&anyList); err != nil {
 		return nil, err
 	}
 
@@ -116,12 +111,12 @@ func listOfListsOfStrings(bytes []byte) ([][]string, error) {
 				if str, ok := v.(string); ok {
 					strList = append(strList, str)
 				} else {
-					return nil, fmt.Errorf("Failed to parse %v", string(bytes))
+					return nil, fmt.Errorf("Expected a string but got %#v", v)
 				}
 			}
 			strLists = append(strLists, strList)
 		default:
-			return nil, fmt.Errorf("Failed to parse %v", string(bytes))
+			return nil, fmt.Errorf("Expected string or []any but got %v", obj)
 		}
 	}
 
@@ -150,11 +145,6 @@ func getLangLinks(lang, title string) (langLinks []LangLink, err error) {
 	}
 	defer resp.Body.Close()
 
-	respBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
 	var langs struct {
 		Query struct {
 			Pages map[string]struct {
@@ -162,7 +152,7 @@ func getLangLinks(lang, title string) (langLinks []LangLink, err error) {
 			} `json:"pages"`
 		} `json:"query"`
 	}
-	err = json.Unmarshal(respBytes, &langs)
+	err = json.NewDecoder(resp.Body).Decode(&langs)
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +169,7 @@ func exitUsage() {
 	os.Exit(0)
 }
 
-func Must[V any](value V, err error) V {
+func must[V any](value V, err error) V {
 	if err != nil {
 		panic(err)
 	}
