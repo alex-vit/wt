@@ -165,7 +165,7 @@ func getLangLinks(lang, title string) (langLinks []LangLink, err error) {
 }
 
 func exitUsage() {
-	fmt.Println(`Usage: wiki-translate [from=es] multi-word search term`)
+	fmt.Println(`Usage: wt [from=es] multi-word search term`)
 	os.Exit(0)
 }
 

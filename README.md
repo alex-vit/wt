@@ -6,13 +6,13 @@ A CLI to translate names or expressions that are hard to translate directly usin
 ## Installation
 
 ```sh
-go install github.com/alex-vit/wiki-translate@latest
+go install github.com/alex-vit/wt@latest
 ```
 
 ## Usage
 
 ```sh
-> wiki-translate [from=lv] naked mole rat
+> wt [from=lv] naked mole rat
 en: Naked mole-rat                 https://en.wikipedia.org/wiki/Naked_mole-rat
 es: Heterocephalus glaber          https://es.wikipedia.org/wiki/Heterocephalus_glaber
 fr: Rat-taupe nu                   https://fr.wikipedia.org/wiki/Rat-taupe_nu
