@@ -18,28 +18,48 @@ func main() {
 		exitUsage()
 	}
 
-	sourceLang := "en"
-	queryStartIdx := 1
-	if strings.HasPrefix(os.Args[1], "from=") {
-		if len(os.Args) < 3 {
-			exitUsage()
+	settings := LoadSettings()
+	var saveSettings, printSettings bool
+	var queryb strings.Builder
+	for _, arg := range os.Args[1:] {
+		if arg == "-save" {
+			saveSettings = true
+		} else if arg == "-settings" {
+			printSettings = true
+		} else if code, ok := strings.CutPrefix(arg, "from="); ok {
+			settings.SourceLanguage = code
+		} else if codesStr, ok := strings.CutPrefix(arg, "to="); ok {
+			settings.TargetLanguages = strings.Split(codesStr, ",")
+		} else {
+			queryb.WriteString(arg)
+			queryb.WriteByte(' ')
 		}
-		sourceLang = strings.TrimPrefix(os.Args[1], "from=")
-		queryStartIdx = 2
+	}
+	settings.Normalize()
+	if saveSettings {
+		settings.Save()
+	}
+	if printSettings {
+		fmt.Printf("%s:\n", SettingsPath())
+		settings.PrettyPrint(os.Stdout)
 	}
 
-	query := strings.Join(os.Args[queryStartIdx:], " ")
+	query := strings.TrimSpace(queryb.String())
+	if query == "" {
+		settings.Save()
+		return
+	}
 
-	targetLangs := []string{"en", "es", "fr", "ru", "lv", "lt"}
-	targetLangs = slices.DeleteFunc(targetLangs, func(lang string) bool { return lang == sourceLang })
-	slices.Sort(targetLangs)
+	settings.TargetLanguages = slices.DeleteFunc(settings.TargetLanguages, func(lang string) bool {
+		return lang == settings.SourceLanguage
+	})
 
-	title, url, err := findTitle(sourceLang, query)
+	title, url, err := findTitle(settings.SourceLanguage, query)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	links, err := getLangLinks(sourceLang, title)
+	links, err := getLangLinks(settings.SourceLanguage, title)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,8 +67,8 @@ func main() {
 	// sort for binary search
 	slices.SortFunc(links, func(a, b LangLink) int { return cmp.Compare(a.Lang, b.Lang) })
 
-	fmt.Printf("%s: %-30s %s\n", sourceLang, title, url) // "from" language is not included in lang links
-	for _, lang := range targetLangs {
+	fmt.Printf("%s: %-30s %s\n", settings.SourceLanguage, title, url) // "from" language is not included in lang links
+	for _, lang := range settings.TargetLanguages {
 		linkIdx, found := slices.BinarySearchFunc(links, lang, func(link LangLink, lang string) int {
 			return cmp.Compare(link.Lang, lang)
 		})
@@ -165,7 +185,31 @@ func getLangLinks(lang, title string) (langLinks []LangLink, err error) {
 }
 
 func exitUsage() {
-	fmt.Println(`Usage: wt [from=es] multi-word search term`)
+	fmt.Println(strings.TrimSpace(`
+DESCRIPTION
+	Translate a term using Wikipedia's language links feature.
+
+USAGE
+	wt [from=lv] [to=en,fr,es] [-save] [multi word query]
+
+OPTIONS
+	Options affect the current query. If query is omitted, or if '-save' is specified,
+	options are saved to settings.
+
+	from=		set the search term language; add it to target languages
+	to=		set languages to translate to
+
+FLAGS
+	-save		Save the from/to options to the settings file. Omitting the query also saves options to file.
+	-settings	Print the settings file path and contents.
+
+EXAMPLES
+	wt -settings		# print current settings, which is set to defaults for now
+	wt egg salad		# translate 'egg salad' according to settings
+	wt from=lv pelmeņi	# translate only this query from 'lv', leaving settings intact
+	wt from=en to=es,fr,de	# update 'from' and 'to' settings since no query was provided
+	wt coelho from=pt -save	# translate from 'pt', saving 'from=pt' to settings
+`))
 	os.Exit(0)
 }
 

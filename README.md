@@ -9,22 +9,27 @@ A CLI to translate names or expressions that are hard to translate directly usin
 go install github.com/alex-vit/wt@latest
 ```
 
-## Usage
+## Usage examples
 
 ```sh
-> wt [from=lv] naked mole rat
-en: Naked mole-rat                 https://en.wikipedia.org/wiki/Naked_mole-rat
-es: Heterocephalus glaber          https://es.wikipedia.org/wiki/Heterocephalus_glaber
-fr: Rat-taupe nu                   https://fr.wikipedia.org/wiki/Rat-taupe_nu
-lt: Plikasis smėlrausis            https://lt.wikipedia.org/wiki/Plikasis_sm%C4%97lrausis
-lv: ???
-ru: Голый землекоп                 https://ru.wikipedia.org/wiki/%D0%93%D0%BE%D0%BB%D1%8B%D0%B9_%D0%B7%D0%B5%D0%BC%D0%BB%D0%B5%D0%BA%D0%BE%D0%BF
+> wt # shows docs
+> wt egg salad
+en: Egg salad                      https://en.wikipedia.org/wiki/Egg_salad
+es: Ensaladilla de huevos          https://es.wikipedia.org/wiki/Ensaladilla_de_huevos
+fr: Salade aux œufs                https://fr.wikipedia.org/wiki/Salade_aux_%C5%93ufs
+> wt from=pt coelho -save -settings
+/Users/alex/Library/Application Support/wt/settings.json:
+{
+  "target_languages": [
+    "en",
+    "es",
+    "fr",
+    "pt"
+  ],
+  "source_language": "pt"
+}
+pt: Coelho                         https://pt.wikipedia.org/wiki/Coelho
+en: Rabbit                         https://en.wikipedia.org/wiki/Rabbit
+es: Conejo                         https://es.wikipedia.org/wiki/Conejo
+fr: Lapin                          https://fr.wikipedia.org/wiki/Lapin
 ```
-
-To change the target languages, modify:
-
-```go
-targetLangs := []string{"en", "es", "fr", "ru", "lv", "lt"}
-```
-
-and recompile.
