@@ -151,10 +151,7 @@ type LangLink struct {
 }
 
 func getLangLinks(lang, title string) (langLinks []LangLink, err error) {
-	u, err := url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=query&format=json&prop=langlinks&llprop=url&lllimit=max")
-	if err != nil {
-		panic("failed to parse URL")
-	}
+	u := must(url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=query&format=json&prop=langlinks&llprop=url&lllimit=max"))
 	q := u.Query()
 	q.Set("titles", title)
 	u.RawQuery = q.Encode()

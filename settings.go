@@ -40,14 +40,9 @@ func (s *Settings) Normalize() {
 }
 
 func LoadSettings() *Settings {
-	uconf := must(os.UserConfigDir())
-	dir := filepath.Join(uconf, dirName)
-	must(0, os.MkdirAll(dir, os.ModePerm))
-
-	path := filepath.Join(dir, filename)
-	file, err := os.Open(path)
-
 	settings := &Settings{}
+
+	file, err := os.Open(SettingsPath())
 	if err == nil {
 		defer file.Close()
 		must(0, json.NewDecoder(file).Decode(&settings))
@@ -60,19 +55,20 @@ func LoadSettings() *Settings {
 }
 
 func (s *Settings) Save() {
-	uconf := must(os.UserConfigDir())
-	dir := filepath.Join(uconf, dirName)
-	must(0, os.MkdirAll(dir, os.ModePerm))
-
-	path := filepath.Join(dir, filename)
-	file := must(os.Create(path))
+	must(0, os.MkdirAll(settingsDir(), os.ModePerm))
+	file := must(os.Create(SettingsPath()))
+	defer file.Close()
 
 	s.Normalize()
 	s.PrettyPrint(file)
 }
 
+func settingsDir() string {
+	return filepath.Join(must(os.UserConfigDir()), dirName)
+}
+
 func SettingsPath() string {
-	return filepath.Join(must(os.UserConfigDir()), dirName, filename)
+	return filepath.Join(settingsDir(), filename)
 }
 
 func (s *Settings) PrettyPrint(w io.Writer) {
