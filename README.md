@@ -6,7 +6,7 @@ A CLI to translate names or expressions that are hard to translate directly usin
 ## Installation
 
 ```sh
-go install github.com/alex-vit/wt@latest
+go install github.com/alex-vit/wt/cmd/wt@latest
 ```
 
 ## Usage examples
