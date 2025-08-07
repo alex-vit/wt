@@ -11,6 +11,8 @@ import (
 	"os"
 	"slices"
 	"strings"
+	
+	"github.com/alex-vit/util"
 )
 
 func main() {
@@ -87,7 +89,7 @@ func main() {
 // Finds the matching article and returns its title and URL.
 // Uses opensearch API: https://www.mediawiki.org/wiki/API:Opensearch.
 func findTitle(lang, query string) (title, titleUrl string, err error) {
-	reqUrl := must(url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=opensearch&format=json&redirects=resolve&limit=1"))
+	reqUrl := util.Must(url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=opensearch&format=json&redirects=resolve&limit=1"))
 	q := reqUrl.Query()
 	q.Set("search", query)
 	reqUrl.RawQuery = q.Encode()
@@ -151,7 +153,7 @@ type LangLink struct {
 }
 
 func getLangLinks(lang, title string) (langLinks []LangLink, err error) {
-	u := must(url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=query&format=json&prop=langlinks&llprop=url&lllimit=max"))
+	u := util.Must(url.Parse("https://" + lang + ".wikipedia.org/w/api.php?action=query&format=json&prop=langlinks&llprop=url&lllimit=max"))
 	q := u.Query()
 	q.Set("titles", title)
 	u.RawQuery = q.Encode()
@@ -208,11 +210,4 @@ EXAMPLES
 	wt coelho from=pt -save	# translate from 'pt', saving 'from=pt' to settings
 `))
 	os.Exit(0)
-}
-
-func must[V any](value V, err error) V {
-	if err != nil {
-		panic(err)
-	}
-	return value
 }

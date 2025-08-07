@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/alex-vit/wt"
+	"github.com/alex-vit/util"
 )
 
 const (
@@ -47,7 +48,7 @@ func LoadSettings() *Settings {
 	file, err := os.Open(SettingsPath())
 	if err == nil {
 		defer file.Close()
-		must(0, json.NewDecoder(file).Decode(&settings))
+		util.Must(0, json.NewDecoder(file).Decode(&settings))
 	} else if !os.IsNotExist(err) {
 		log.Fatal(err)
 	}
@@ -57,8 +58,8 @@ func LoadSettings() *Settings {
 }
 
 func (s *Settings) Save() {
-	must(0, os.MkdirAll(settingsDir(), os.ModePerm))
-	file := must(os.Create(SettingsPath()))
+	util.Must(0, os.MkdirAll(settingsDir(), os.ModePerm))
+	file := util.Must(os.Create(SettingsPath()))
 	defer file.Close()
 
 	s.Normalize()
@@ -66,7 +67,7 @@ func (s *Settings) Save() {
 }
 
 func settingsDir() string {
-	return filepath.Join(must(os.UserConfigDir()), dirName)
+	return filepath.Join(util.Must(os.UserConfigDir()), dirName)
 }
 
 func SettingsPath() string {
@@ -76,5 +77,5 @@ func SettingsPath() string {
 func (s *Settings) PrettyPrint(w io.Writer) {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
-	must(0, enc.Encode(s))
+	util.Must(0, enc.Encode(s))
 }
