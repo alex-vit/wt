@@ -11,7 +11,7 @@ import (
 	"os"
 	"slices"
 	"strings"
-	
+
 	"github.com/alex-vit/util"
 )
 
@@ -94,7 +94,10 @@ func findTitle(lang, query string) (title, titleUrl string, err error) {
 	q.Set("search", query)
 	reqUrl.RawQuery = q.Encode()
 
-	resp, err := http.Get(reqUrl.String())
+	req, _ := http.NewRequest("GET", reqUrl.String(), nil)
+	addUserAgent(req)
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", "", err
 	}
@@ -158,7 +161,10 @@ func getLangLinks(lang, title string) (langLinks []LangLink, err error) {
 	q.Set("titles", title)
 	u.RawQuery = q.Encode()
 
-	resp, err := http.Get(u.String())
+	req, _ := http.NewRequest("GET", u.String(), nil)
+	addUserAgent(req)
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -181,6 +187,10 @@ func getLangLinks(lang, title string) (langLinks []LangLink, err error) {
 		return v.LangLinks, nil
 	}
 	return nil, fmt.Errorf(`No results for "%s"`, title)
+}
+
+func addUserAgent(req *http.Request) {
+	req.Header.Add("User-Agent", "wt 1.0 / wiki-translate / https://github.com/alex-vit/wt")
 }
 
 func exitUsage() {

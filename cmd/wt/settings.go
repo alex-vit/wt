@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/alex-vit/wt"
 	"github.com/alex-vit/util"
+	"github.com/alex-vit/wt"
 )
 
 const (
