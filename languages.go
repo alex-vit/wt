@@ -9,7 +9,7 @@ import (
 
 //go:embed wpcodes.txt
 var wpcodes []byte
-var supportedLanguageCodes map[string]struct{} = make(map[string]struct{}, 343)
+var supportedLanguageCodes map[string]struct{} = make(map[string]struct{}, 400)
 
 func init() {
 	scanner := bufio.NewScanner(bytes.NewReader(wpcodes))
