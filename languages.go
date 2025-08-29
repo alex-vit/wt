@@ -1,4 +1,4 @@
-package wt
+package main
 
 import (
 	"bufio"

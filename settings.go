@@ -9,7 +9,6 @@ import (
 	"slices"
 
 	"github.com/alex-vit/util"
-	"github.com/alex-vit/wt"
 )
 
 const (
@@ -26,7 +25,7 @@ func (s *Settings) Normalize() {
 	if len(s.TargetLanguages) == 0 {
 		s.TargetLanguages = []string{"en", "es", "fr"}
 	} else {
-		s.TargetLanguages = slices.DeleteFunc(s.TargetLanguages, wt.UnsupportedLanguage)
+		s.TargetLanguages = slices.DeleteFunc(s.TargetLanguages, UnsupportedLanguage)
 		slices.Sort(s.TargetLanguages)
 		s.TargetLanguages = slices.Compact(s.TargetLanguages)
 	}
